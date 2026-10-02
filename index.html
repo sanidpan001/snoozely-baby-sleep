@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en" id="top">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snoozely — Baby Sleep Schedule by Age, Wake Windows Chart & Nap Planner</title>
+<meta name="description" content="Free baby sleep schedule generator by age: wake windows chart, nap plans, overtired rescue mode, nap-drop predictor and live put-down countdown.">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#141B34; --primary:#8B9CF0; --accent:#FFD66B; }
+  html { scroll-behavior:smooth; }
+  body { background:var(--bg); color:#E8ECF8; font-family:'Nunito',system-ui,sans-serif; }
+  .font-display { font-family:'Baloo 2','Nunito',sans-serif; }
+  #starfield { position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+  .star { position:absolute; border-radius:9999px; background:#fff; animation:twinkle 3s ease-in-out infinite; }
+  @keyframes twinkle { 0%,100%{opacity:.15; transform:scale(.8);} 50%{opacity:1; transform:scale(1.15);} }
+  .moon-glow { filter:drop-shadow(0 0 28px rgba(255,214,107,.45)); }
+  .glow-card { background:linear-gradient(160deg, rgba(139,156,240,.14), rgba(139,156,240,.05));
+               border:1px solid rgba(139,156,240,.35); border-radius:1.25rem;
+               box-shadow:0 0 24px rgba(139,156,240,.12), inset 0 1px 0 rgba(255,255,255,.06); }
+  .glow-card:hover { box-shadow:0 0 36px rgba(139,156,240,.22), inset 0 1px 0 rgba(255,255,255,.08); }
+  .accent-chip { background:rgba(255,214,107,.12); border:1px solid rgba(255,214,107,.45); color:var(--accent); }
+  .btn-primary { background:linear-gradient(135deg,#8B9CF0,#6C7FE0); color:#141B34; font-weight:800;
+                 box-shadow:0 4px 22px rgba(139,156,240,.45); transition:transform .15s ease, box-shadow .15s ease; }
+  .btn-primary:hover { transform:translateY(-1px); box-shadow:0 8px 28px rgba(139,156,240,.55); }
+  .btn-accent { background:linear-gradient(135deg,#FFD66B,#F5B942); color:#141B34; font-weight:800;
+                box-shadow:0 4px 22px rgba(255,214,107,.4); transition:transform .15s ease; }
+  .btn-accent:hover { transform:translateY(-1px); }
+  .field { background:rgba(10,14,30,.7); border:1px solid rgba(139,156,240,.4); border-radius:.75rem;
+           color:#E8ECF8; padding:.6rem .9rem; width:100%; }
+  .field:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(255,214,107,.25); }
+  select.field option { background:#1A2242; }
+  .timeline-dot { width:14px; height:14px; border-radius:9999px; background:var(--accent);
+                  box-shadow:0 0 14px rgba(255,214,107,.9); flex:none; }
+  .timeline-line { width:2px; background:linear-gradient(180deg, rgba(139,156,240,.7), rgba(139,156,240,.15)); }
+  .flag-now { border-color:rgba(255,214,107,.7); box-shadow:0 0 20px rgba(255,214,107,.25); }
+  .flag-soon { border-color:rgba(139,156,240,.6); }
+  .cloud { background:rgba(255,255,255,.06); border-radius:9999px; filter:blur(1px); }
+  @keyframes drift { from{transform:translateX(-10%);} to{transform:translateX(110vw);} }
+  .drifting { animation:drift 70s linear infinite; }
+  details.faq summary { cursor:pointer; }
+  details.faq summary::-webkit-details-marker { display:none; }
+  #print-chart { display:none; }
+  @media print {
+    .no-print, #starfield { display:none !important; }
+    body { background:#fff; color:#111; }
+    #print-chart { display:block !important; color:#111; }
+    #print-chart table { width:100%; border-collapse:collapse; }
+    #print-chart th, #print-chart td { border:1px solid #333; padding:8px 10px; text-align:left; }
+  }
+</style>
+</head>
+<body class="min-h-screen relative">
+<div id="starfield" aria-hidden="true"></div>
+
+<!-- Sticky header -->
+<header class="no-print sticky top-0 z-50 backdrop-blur-md" style="background:rgba(20,27,52,.85); border-bottom:1px solid rgba(139,156,240,.25);">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+    <a href="#top" class="flex items-center gap-2.5">
+      <svg class="moon-glow" width="34" height="34" viewBox="0 0 36 36" aria-hidden="true">
+        <path d="M28 20.5A12 12 0 1 1 15.5 8 9.6 9.6 0 0 0 28 20.5Z" fill="#FFD66B"/>
+        <circle cx="26.5" cy="9" r="1.6" fill="#8B9CF0"/><circle cx="30" cy="15" r="1.1" fill="#8B9CF0"/>
+      </svg>
+      <span class="font-display text-2xl font-extrabold tracking-tight">Snoozely</span>
+    </a>
+    <nav class="flex items-center gap-5 text-sm font-semibold">
+      <a href="#top" class="hover:text-[#FFD66B] transition-colors">Home</a>
+      <a href="https://fixoraa.tech" class="hover:text-[#FFD66B] transition-colors">More Tools</a>
+    </nav>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="no-print relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-6 text-center">
+  <div class="flex justify-center mb-4" aria-hidden="true">
+    <div class="relative">
+      <svg class="moon-glow" width="96" height="96" viewBox="0 0 100 100">
+        <defs><radialGradient id="moonG" cx="40%" cy="35%"><stop offset="0%" stop-color="#FFF3C4"/><stop offset="100%" stop-color="#FFD66B"/></radialGradient></defs>
+        <path d="M78 56A34 34 0 1 1 44 22 25.5 25.5 0 0 0 78 56Z" fill="url(#moonG)"/>
+      </svg>
+      <div class="cloud drifting absolute -bottom-1 -left-8 w-24 h-7"></div>
+    </div>
+  </div>
+  <h1 class="font-display text-4xl sm:text-5xl font-extrabold leading-tight">Baby Sleep Schedule <span class="text-[#FFD66B]">by Age</span></h1>
+  <p class="mt-3 max-w-2xl mx-auto text-slate-300">Build the perfect day: wake windows, nap times, overtired rescue plans and nap-drop predictions — all tuned to your baby's age.</p>
+  <div class="mt-4 inline-flex items-center gap-2 accent-chip rounded-full px-4 py-1.5 text-sm font-bold">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>
+    Unlimited Free Usage — no signup, no paywall
+  </div>
+</section>
+
+<!-- TOP AD (verbatim) -->
+<div class="no-print mx-auto max-w-6xl px-4 sm:px-6 pt-4" role="complementary" aria-label="Advertisement">
+  <div class="mx-auto text-center" style="max-width:728px">
+    <span class="block text-[10px] tracking-[0.18em] uppercase text-slate-400 mb-1.5">Advertisement</span>
+    <div class="flex justify-center overflow-hidden">
+      <div class="origin-top scale-[0.44] sm:scale-100 shrink-0">
+        <script>
+          atOptions = { 'key' : '4e68ac77881c17fe128a46565d9a4e8c', 'format' : 'iframe', 'height' : 90, 'width' : 728, 'params' : {} };
+        </script>
+        <script src="https://www.highrevenueformat.com/4e68ac77881c17fe128a46565d9a4e8c/invoke.js"></script>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOOL -->
+<main class="no-print relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-8">
+  <div class="grid gap-6 lg:grid-cols-2">
+
+    <!-- Panel 1: Schedule generator -->
+    <section class="glow-card p-5 sm:p-7" aria-label="Daily schedule generator">
+      <h2 class="font-display text-2xl font-bold mb-1">🌙 Daily Schedule Generator</h2>
+      <p class="text-sm text-slate-300 mb-4">Enter your baby's age and usual wake-up time for a full glowing schedule.</p>
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <label for="age" class="text-xs font-bold uppercase tracking-wider text-slate-300">Baby's age</label>
+          <input id="age" type="number" min="0" max="24" step="0.5" value="6" class="field mt-1" placeholder="e.g. 6">
+        </div>
+        <div>
+          <label for="ageUnit" class="text-xs font-bold uppercase tracking-wider text-slate-300">Unit</label>
+          <select id="ageUnit" class="field mt-1"><option value="months">Months</option><option value="weeks">Weeks</option></select>
+        </div>
+      </div>
+      <div class="mb-4">
+        <label for="wakeTime" class="text-xs font-bold uppercase tracking-wider text-slate-300">Usual morning wake-up</label>
+        <input id="wakeTime" type="time" value="07:00" class="field mt-1">
+      </div>
+      <button id="btnSchedule" class="btn-primary rounded-xl px-6 py-2.5 w-full sm:w-auto">Generate schedule ✨</button>
+      <p id="scheduleMsg" class="text-sm text-[#FFD66B] mt-2" role="alert"></p>
+      <div id="scheduleCards" class="mt-5"></div>
+    </section>
+
+    <!-- Panel 2: Overtired rescue -->
+    <section class="glow-card p-5 sm:p-7" aria-label="Overtired rescue mode" style="border-color:rgba(255,214,107,.5);">
+      <h2 class="font-display text-2xl font-bold mb-1">🆘 Overtired Rescue Mode</h2>
+      <p class="text-sm text-slate-300 mb-4">Missed a nap? Get an emergency plan for the rest of the day — with an earlier bedtime.</p>
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <label for="lastWake" class="text-xs font-bold uppercase tracking-wider text-slate-300">Last wake-up time</label>
+          <input id="lastWake" type="time" value="12:00" class="field mt-1">
+        </div>
+        <div>
+          <label for="missedNap" class="text-xs font-bold uppercase tracking-wider text-slate-300">Missed nap #</label>
+          <select id="missedNap" class="field mt-1">
+            <option value="1">Nap 1</option><option value="2" selected>Nap 2</option>
+            <option value="3">Nap 3</option><option value="4">Nap 4</option>
+          </select>
+        </div>
+      </div>
+      <p class="text-xs text-slate-400 mb-4">Uses the same age &amp; wake-up from the schedule panel.</p>
+      <button id="btnRescue" class="btn-accent rounded-xl px-6 py-2.5 w-full sm:w-auto">Build rescue plan 🚨</button>
+      <p id="rescueMsg" class="text-sm text-[#FFD66B] mt-2" role="alert"></p>
+      <div id="rescueCards" class="mt-5"></div>
+    </section>
+
+    <!-- Panel 3: Nap transition predictor -->
+    <section class="glow-card p-5 sm:p-7" aria-label="Nap transition predictor">
+      <h2 class="font-display text-2xl font-bold mb-1">🔮 Nap-Drop Predictor</h2>
+      <p class="text-sm text-slate-300 mb-4">When will your baby drop to the next nap count? Check the readiness signs.</p>
+      <button id="btnTransition" class="btn-primary rounded-xl px-6 py-2.5 w-full sm:w-auto">Predict my transition</button>
+      <div id="transitionCards" class="mt-5"></div>
+    </section>
+
+    <!-- Panel 4: Fussy periods -->
+    <section class="glow-card p-5 sm:p-7" aria-label="Growth spurt and teething flags">
+      <h2 class="font-display text-2xl font-bold mb-1">🌊 Fussy-Period Flags</h2>
+      <p class="text-sm text-slate-300 mb-4">Growth spurts, developmental leaps and teething windows that can wobble sleep.</p>
+      <button id="btnFussy" class="btn-primary rounded-xl px-6 py-2.5 w-full sm:w-auto">Check this week</button>
+      <div id="fussyCards" class="mt-5 grid gap-3"></div>
+    </section>
+
+    <!-- Panel 5: Countdown + print -->
+    <section class="glow-card p-5 sm:p-7 lg:col-span-2" aria-label="Put-down countdown and printable chart">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+        <div>
+          <h2 class="font-display text-2xl font-bold mb-1">⏳ Put-Down Countdown</h2>
+          <p class="text-sm text-slate-300">Live countdown to the next nap or bedtime — from right now.</p>
+        </div>
+        <button id="btnPrint" class="btn-accent rounded-xl px-6 py-2.5 whitespace-nowrap">🖨️ Print daily chart</button>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-3 mt-4 max-w-2xl">
+        <div>
+          <label for="countTarget" class="text-xs font-bold uppercase tracking-wider text-slate-300">Count down to</label>
+          <select id="countTarget" class="field mt-1"><option value="">Generate a schedule first…</option></select>
+        </div>
+        <div>
+          <label for="manualTime" class="text-xs font-bold uppercase tracking-wider text-slate-300">…or set a custom time</label>
+          <input id="manualTime" type="time" class="field mt-1" placeholder="HH:MM">
+        </div>
+      </div>
+      <div class="mt-5 text-center">
+        <div id="countdownLabel" class="text-sm text-slate-300 mb-1">Next up: —</div>
+        <div id="countdownBig" class="font-display text-5xl sm:text-6xl font-extrabold text-[#FFD66B]" style="text-shadow:0 0 30px rgba(255,214,107,.5);">--:--:--</div>
+        <p class="text-xs text-slate-400 mt-2">Ticking live, updated every second.</p>
+      </div>
+    </section>
+  </div>
+  <p class="text-xs text-slate-400 mt-6 max-w-3xl">Gentle note: Snoozely offers general sleep guidance for healthy babies — it is not medical advice. If you have concerns about your baby's sleep, feeding or development, please consult your pediatrician.</p>
+</main>
+
+<!-- BOTTOM AD (verbatim) -->
+<div class="no-print mx-auto max-w-6xl px-4 sm:px-6 pb-4" role="complementary" aria-label="Advertisement">
+  <div class="mx-auto text-center" style="max-width:728px">
+    <span class="block text-[10px] tracking-[0.18em] uppercase text-slate-400 mb-1.5">Advertisement</span>
+    <div class="flex justify-center overflow-hidden">
+      <script async src="https://js.wpadmngr.com/static/adManager.js" data-admpid="464498"></script>
+    </div>
+  </div>
+</div>
+
+<!-- Print-only chart -->
+<div id="print-chart" aria-hidden="true">
+  <h1 style="font-size:22px;">Snoozely — Daily Baby Sleep Chart</h1>
+  <p id="printMeta"></p>
+  <table><thead><tr><th>Event</th><th>Time</th><th>Notes</th></tr></thead><tbody id="printBody"></tbody></table>
+  <p style="font-size:12px;margin-top:12px;">General guidance only — not medical advice. Consult your pediatrician with any concerns.</p>
+</div>
+
+<!-- SEO ARTICLE -->
+<article id="seo-article" class="no-print relative z-10 max-w-4xl mx-auto px-4 sm:px-6 py-10 text-slate-200 leading-relaxed">
+  <h2 class="font-display text-3xl font-bold mb-4 text-white">The Complete Guide to Baby Sleep Schedules by Age</h2>
+  <p class="mb-4">Few things change family life as dramatically as a baby who sleeps well — and few things confuse new parents as much as figuring out <em>when</em> that baby should sleep. A baby sleep schedule by age is not a rigid timetable; it is a rhythm built on two pillars: your baby's age-appropriate wake windows and a consistent anchor like the morning wake-up time. Get those right, and naps and bedtime start falling into place almost on their own.</p>
+  <p class="mb-4">This guide walks you through the baby wake windows chart that pediatric sleep consultants use, explains how nap counts change as your baby grows, shows you exactly when your baby will drop a nap, and gives you an emergency plan for the dreaded overtired meltdown. Use the free Snoozely planner above to generate a personalized day plan in seconds — then read on to understand the "why" behind every time it suggests.</p>
+
+  <h3 class="font-display text-2xl font-bold mt-8 mb-3 text-white">What Are Wake Windows, and Why Do They Run the Whole Show?</h3>
+  <p class="mb-4">A wake window is the maximum time your baby can comfortably stay awake between sleeps. Put a baby down too early and you get playful babbling instead of sleep; stretch the window too long and you get the classic overtired spiral — a wired, fussy baby who fights sleep precisely because they needed it sooner. Sleep pressure builds the longer a baby is awake, and young babies accumulate it fast.</p>
+  <p class="mb-4">Wake windows lengthen as the brain matures. A newborn may manage only 45 to 60 minutes, while a two-year-old can power through five or six hours. Windows also stretch slightly across the day: the first window of the morning is usually the shortest, and the last window before bedtime is the longest. That is why schedules generated from a single fixed interval rarely work — Snoozely interpolates each window so mornings stay gentle and evenings can handle the stretch.</p>
+
+  <h3 class="font-display text-2xl font-bold mt-8 mb-3 text-white">Baby Wake Windows Chart (Approximate)</h3>
+  <p class="mb-4">Below is the reference chart most sleep consultants work from. Treat every range as a starting point and adjust by 15 minutes in either direction based on your baby's cues — yawning, eye rubbing, zoning out, and fussiness are the final authority.</p>
+  <div class="overflow-x-auto mb-6">
+  <table class="w-full text-sm border-collapse">
+    <thead><tr class="text-left" style="background:rgba(139,156,240,.15);">
+      <th class="border border-[#8B9CF0]/40 px-3 py-2">Age</th><th class="border border-[#8B9CF0]/40 px-3 py-2">Typical naps</th><th class="border border-[#8B9CF0]/40 px-3 py-2">Wake window</th><th class="border border-[#8B9CF0]/40 px-3 py-2">Total day sleep</th>
+    </tr></thead>
+    <tbody>
+      <tr><td class="border border-[#8B9CF0]/40 px-3 py-2">0–1 month</td><td class="border border-[#8B9CF0]/40 px-3 py-2">5+</td><td class="border border-[#8B9CF0]/40 px-3 py-2">45–60 min</td><td class="border border-[#8B9CF0]/40 px-3 py-2">14–17 h</td></tr>
+      <tr><td class="border border-[#8B9CF0]/40 px-3 py-2">1–3 months</td><td class="border border-[#8B9CF0]/40 px-3 py-2">4–5</td><td class="border border-[#8B9CF0]/40 px-3 py-2">60–90 min</td><td class="border border-[#8B9CF0]/40 px-3 py-2">13–15 h</td></tr>
+      <tr><td class="border border-[#8B9CF0]/40 px-3 py-2">3–4 months</td><td class="border border-[#8B9CF0]/40 px-3 py-2">4</td><td class="border border-[#8B9CF0]/40 px-3 py-2">75 min–2 h</td><td class="border border-[#8B9CF0]/40 px-3 py-2">12–14 h</td></tr>
+      <tr><td class="border border-[#8B9CF0]/40 px-3 py-2">5–6 months</td><td class="border border-[#8B9CF0]/40 px-3 py-2">3</td><td class="border border-[#8B9CF0]/40 px-3 py-2">2–2.5 h</td><td class="border border-[#8B9CF0]/40 px-3 py-2">11–13 h</td></tr>
+      <tr><td class="border border-[#8B9CF0]/40 px-3 py-2">7–8 months</td><td class="border border-[#8B9CF0]/40 px-3 py-2">2–3</td><td class="border border-[#8B9CF0]/40 px-3 py-2">2.5–3.5 h</td><td class="border border-[#8B9CF0]/40 px-3 py-2">11–13 h</td></tr>
+      <tr><td class="border border-[#8B9CF0]/40 px-3 py-2">9–12 months</td><td class="border border-[#8B9CF0]/40 px-3 py-2">2</td><td class="border border-[#8B9CF0]/40 px-3 py-2">3–4 h</td><td class="border border-[#8B9CF0]/40 px-3 py-2">11–12 h</td></tr>
+      <tr><td class="border border-[#8B9CF0]/40 px-3 py-2">13–17 months</td><td class="border border-[#8B9CF0]/40 px-3 py-2">1–2</td><td class="border border-[#8B9CF0]/40 px-3 py-2">3.5–5 h</td><td class="border border-[#8B9CF0]/40 px-3 py-2">10.5–12 h</td></tr>
+      <tr><td class="border border-[#8B9CF0]/40 px-3 py-2">18–24 months</td><td class="border border-[#8B9CF0]/40 px-3 py-2">1</td><td class="border border-[#8B9CF0]/40 px-3 py-2">5–6 h</td><td class="border border-[#8B9CF0]/40 px-3 py-2">10–12 h</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3 class="font-display text-2xl font-bold mt-8 mb-3 text-white">How to Build a Day Schedule That Actually Works</h3>
+  <p class="mb-4">Start with a fixed morning wake-up time and protect it — it anchors the entire circadian rhythm. Light exposure within the first hour of waking is the strongest "it is daytime" signal you can give. From there, add wake windows and nap lengths to land each nap, and set bedtime after the final, longest wake window. The Snoozely generator above does exactly this math for you.</p>
+  <p class="mb-4">Two rules make or break the plan. First, cap any single nap that threatens bedtime — a glorious three-hour afternoon nap at 12 months is wonderful until it pushes bedtime to 9:30 PM and the whole next day unravels. Second, keep bedtime within a 30-minute window every night, even on weekends; consistency teaches the body clock faster than any technique.</p>
+
+  <h3 class="font-display text-2xl font-bold mt-8 mb-3 text-white">When Will My Baby Drop a Nap?</h3>
+  <p class="mb-4">Nap transitions are the most-searched milestone in baby sleep, and the answer is refreshingly predictable. Babies typically move from 4 naps to 3 between 5 and 6 months, from 3 naps to 2 between 7 and 9 months, and from 2 naps to 1 between 14 and 15 months. The final transition — dropping the last nap — usually happens between ages 3 and 5, and many children keep a quiet "rest time" long after the nap itself fades.</p>
+  <p class="mb-4">The calendar matters less than the signs. A transition is probably due when your baby consistently refuses one nap for one to two weeks, takes more than 30 minutes to fall asleep for a nap they used to take easily, or when keeping all naps pushes bedtime later and later. Crucially, one bad day is not a transition — look for a pattern of at least a week before you restructure the day. During the changeover, alternate between the old and new schedule: it is completely normal to need two weeks of wobbly days. The readiness checklist in the predictor above walks you through each sign so you can tick them off as you observe them.</p>
+
+  <h3 class="font-display text-2xl font-bold mt-8 mb-3 text-white">The Overtired Trap — and the Rescue Plan</h3>
+  <p class="mb-4">An overtired baby is paradoxically harder to settle: the body releases cortisol and adrenaline to keep an exhausted baby awake, producing the famous "second wind" of wild giggling at 8 PM. The rescue is counterintuitive but reliable — move bedtime earlier, not later. An overtired baby often sleeps longer and deeper after an early night, and one early night usually resets the cycle by the next morning.</p>
+  <p class="mb-4">If a missed nap leaves a gaping hole in the afternoon, a short "bridge catnap" of 20 to 30 minutes takes the edge off without stealing night sleep. Keep it short on purpose: a full-length replacement nap in the late afternoon simply shifts the problem to bedtime. Snoozely's rescue mode calculates exactly when that catnap should start and how early bedtime should move, based on your baby's age.</p>
+
+  <h3 class="font-display text-2xl font-bold mt-8 mb-3 text-white">Growth Spurts, Leaps and Teething: the Sleep Wobblers</h3>
+  <p class="mb-4">Even a perfect schedule wobbles sometimes. Classic growth-spurt weeks — around weeks 3, 6, 12 and 16 — bring cluster feeding and extra sleep needs. Developmental leaps, popularized by "Wonder Weeks" research, cluster around weeks 5, 8, 12, 19, 26, 37 and 46, and each can bring a few days of clinginess and disrupted naps. Teething typically stirs between 4 and 8 months. These ranges are averages, not appointments — your baby runs on their own clock — but knowing a fussy window is open helps you respond with comfort instead of schedule panic. During these phases, hold the routine steady, offer extra feeds if asked for, and trust that sleep normalizes once the leap passes.</p>
+
+  <h3 class="font-display text-2xl font-bold mt-8 mb-3 text-white">Sample Schedules by Age</h3>
+  <p class="mb-4"><strong>6 months (3 naps), wake 7:00 AM:</strong> Nap 1 around 9:00, Nap 2 around 12:30, a short Nap 3 around 4:00, bedtime near 7:30 PM. <strong>10 months (2 naps), wake 7:00 AM:</strong> Nap 1 around 9:30, Nap 2 around 1:30, bedtime near 7:00–7:30 PM. <strong>20 months (1 nap), wake 7:00 AM:</strong> one long nap around 12:30, bedtime near 7:30 PM. Notice how bedtime stays early across all ages — a 7:00 to 8:00 PM bedtime supports the 11 to 12 hours of night sleep most babies need, because the deepest sleep happens in the first half of the night.</p>
+
+  <h3 class="font-display text-2xl font-bold mt-8 mb-3 text-white">Bedtime Routine: Small Ritual, Big Signal</h3>
+  <p class="mb-4">A 20 to 30 minute routine — bath, pajamas, book, song, lights out — repeated in the same order every night becomes a powerful sleep cue within a week or two. Keep the room dark, cool and boring; use white noise if your home is lively; and put your baby down drowsy but awake whenever possible so they learn to connect sleep cycles independently. None of this requires special equipment — consistency is the equipment.</p>
+  <p class="mb-4">Finally, remember that schedules serve the baby, not the other way around. Illness, travel, regressions and milestones will bend any plan, and that is fine. The goal is a rhythm you return to, not a timetable you never break. Generate today's plan with Snoozely, print the chart for the fridge so every caregiver follows the same rhythm, and give it a few days — sleep is a skill, and skills are built with repetition.</p>
+
+  <h2 class="font-display text-3xl font-bold mt-10 mb-4 text-white">Frequently Asked Questions</h2>
+  <div class="space-y-3">
+    <details class="faq glow-card p-4">
+      <summary class="font-bold text-[#FFD66B]">What are wake windows and why do they matter? <span class="float-right">+</span></summary>
+      <p class="mt-2 text-sm">A wake window is how long your baby can happily stay awake between sleeps. Shorter than the window, they won't be tired; longer, they become overtired and fight sleep. Matching naps to age-appropriate wake windows is the single most effective way to fix nap battles.</p>
+    </details>
+    <details class="faq glow-card p-4">
+      <summary class="font-bold text-[#FFD66B]">When will my baby drop a nap? <span class="float-right">+</span></summary>
+      <p class="mt-2 text-sm">Most babies go 4→3 naps around 5–6 months, 3→2 around 7–9 months, and 2→1 around 14–15 months. Watch for consistent nap refusal or 30+ minute battles over 1–2 weeks — one bad day doesn't count. Use the predictor above for a personalized readiness checklist.</p>
+    </details>
+    <details class="faq glow-card p-4">
+      <summary class="font-bold text-[#FFD66B]">How do I know my baby is overtired? <span class="float-right">+</span></summary>
+      <p class="mt-2 text-sm">Classic signs: a "second wind" of wild energy at bedtime, arching or fussing when you try the routine, short fragmented naps, and frequent night wakes. The fix is an earlier bedtime — not a later one — plus a short bridge catnap if a nap was missed.</p>
+    </details>
+    <details class="faq glow-card p-4">
+      <summary class="font-bold text-[#FFD66B]">What is a bridge catnap and when should I use one? <span class="float-right">+</span></summary>
+      <p class="mt-2 text-sm">A bridge catnap is a deliberate 20–30 minute nap used to bridge a too-long gap after a missed nap. It takes the edge off overtiredness without pushing bedtime late. Snoozely's rescue mode inserts one automatically when the gap to bedtime is unsafe.</p>
+    </details>
+    <details class="faq glow-card p-4">
+      <summary class="font-bold text-[#FFD66B]">Do growth spurts and teething really disrupt sleep? <span class="float-right">+</span></summary>
+      <p class="mt-2 text-sm">Yes — temporarily. Growth-spurt weeks (around weeks 3, 6, 12, 16), developmental leaps and teething (often 4–8 months) can bring a few days of clinginess, cluster feeding and broken naps. Hold your routine steady and sleep usually normalizes within days.</p>
+    </details>
+    <details class="faq glow-card p-4">
+      <summary class="font-bold text-[#FFD66B]">What time should my baby go to bed? <span class="float-right">+</span></summary>
+      <p class="mt-2 text-sm">Most babies thrive with a 7:00–8:00 PM bedtime, because the deepest sleep happens in the first half of the night. After a missed nap or overtired day, move it 45–60 minutes earlier. A consistent bedtime matters more than the exact hour.</p>
+    </details>
+  </div>
+</article>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type": "Question", "name": "What are wake windows and why do they matter?", "acceptedAnswer": {"@type": "Answer", "text": "A wake window is how long your baby can happily stay awake between sleeps. Matching naps to age-appropriate wake windows is the single most effective way to fix nap battles."}},
+    {"@type": "Question", "name": "When will my baby drop a nap?", "acceptedAnswer": {"@type": "Answer", "text": "Most babies go 4 to 3 naps around 5-6 months, 3 to 2 around 7-9 months, and 2 to 1 around 14-15 months. Look for consistent nap refusal over 1-2 weeks before restructuring the day."}},
+    {"@type": "Question", "name": "How do I know my baby is overtired?", "acceptedAnswer": {"@type": "Answer", "text": "Classic signs include a second wind of wild energy at bedtime, fussing during the routine, short fragmented naps, and frequent night wakes. The fix is an earlier bedtime."}},
+    {"@type": "Question", "name": "What is a bridge catnap and when should I use one?", "acceptedAnswer": {"@type": "Answer", "text": "A bridge catnap is a deliberate 20-30 minute nap used to bridge a too-long gap after a missed nap. It eases overtiredness without pushing bedtime late."}},
+    {"@type": "Question", "name": "Do growth spurts and teething really disrupt sleep?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, temporarily. Growth-spurt weeks, developmental leaps and teething can bring a few days of clinginess and broken naps. Sleep usually normalizes within days."}},
+    {"@type": "Question", "name": "What time should my baby go to bed?", "acceptedAnswer": {"@type": "Answer", "text": "Most babies thrive with a 7:00-8:00 PM bedtime. After an overtired day, move it 45-60 minutes earlier. Consistency matters more than the exact hour."}}
+  ]
+}
+</script>
+
+<footer class="no-print relative z-10 border-t border-[#8B9CF0]/25 mt-6">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-slate-400">
+    <span class="font-display font-bold text-slate-200">🌙 Snoozely</span>
+    <span>General guidance only — not medical advice. Consult your pediatrician with concerns.</span>
+    <a href="https://fixoraa.tech" class="hover:text-[#FFD66B]">More Tools</a>
+  </div>
+</footer>
+
+<script id="snoozely-baby-sleep-lib">
+/* Snoozely Baby Sleep Scheduler — pure logic library (no DOM, no I/O).
+   All functions are top-level declarations; the test harness evals this file
+   with `new Function(code + 'return {...}')`, so every function below is
+   returned and callable in plain Node. */
+
+/* Age brackets in months: typical wake windows and nap counts.
+   Values follow widely published pediatric sleep guidance (approximate). */
+function WAKE_WINDOWS() {
+  return [
+    { min: 0,  max: 1,   label: '0–1 month',    naps: 5, windowMin: 45,  windowMax: 60,  napLen: 60, note: 'Newborns nap around the clock; wake windows stay tiny.' },
+    { min: 1,  max: 3,   label: '1–3 months',   naps: 5, windowMin: 60,  windowMax: 90,  napLen: 75, note: 'Short naps are normal; follow sleepy cues closely.' },
+    { min: 3,  max: 5,   label: '3–4 months',   naps: 4, windowMin: 75,  windowMax: 120, napLen: 75, note: 'A loose morning routine often starts to appear.' },
+    { min: 5,  max: 7,   label: '5–6 months',   naps: 3, windowMin: 120, windowMax: 150, napLen: 75, note: 'The classic 3-nap schedule; night sleep usually consolidates.' },
+    { min: 7,  max: 9,   label: '7–8 months',   naps: 3, windowMin: 150, windowMax: 210, napLen: 75, note: 'Some babies start resisting the third nap here.' },
+    { min: 9,  max: 13,  label: '9–12 months',  naps: 2, windowMin: 180, windowMax: 240, napLen: 75, note: 'The dependable 2-nap rhythm; mornings get longer.' },
+    { min: 13, max: 18,  label: '13–17 months', naps: 2, windowMin: 210, windowMax: 300, napLen: 80, note: 'Transition territory — some days need one nap.' },
+    { min: 18, max: 25,  label: '18–24 months', naps: 1, windowMin: 300, windowMax: 360, napLen: 90, note: 'One long midday nap; protect it fiercely.' }
+  ];
+}
+
+/* Find the bracket for a given age in months (clamped to the table). */
+function bracketForAge(ageMonths) {
+  var rows = WAKE_WINDOWS();
+  if (!isFinite(ageMonths) || ageMonths < 0) ageMonths = 0;
+  if (ageMonths > 24) ageMonths = 24;
+  for (var i = 0; i < rows.length; i++) {
+    if (ageMonths >= rows[i].min && ageMonths < rows[i].max) return rows[i];
+  }
+  return rows[rows.length - 1];
+}
+
+/* "07:30" or "7:30" -> minutes since midnight. Returns null on bad input. */
+function parseTime(str) {
+  if (typeof str !== 'string') return null;
+  var m = str.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  var h = parseInt(m[1], 10), min = parseInt(m[2], 10);
+  if (h < 0 || h > 23 || min < 0 || min > 59) return null;
+  return h * 60 + min;
+}
+
+/* minutes -> "7:30 AM" style. Wraps past midnight. */
+function formatTime(minutes) {
+  minutes = ((minutes % 1440) + 1440) % 1440;
+  var h = Math.floor(minutes / 60), m = minutes % 60;
+  var ampm = h < 12 ? 'AM' : 'PM';
+  var h12 = h % 12; if (h12 === 0) h12 = 12;
+  return h12 + ':' + (m < 10 ? '0' + m : m) + ' ' + ampm;
+}
+
+/* minutes -> "2h 15m" style duration. */
+function formatDuration(minutes) {
+  minutes = Math.round(minutes);
+  var h = Math.floor(minutes / 60), m = minutes % 60;
+  if (h === 0) return m + 'm';
+  if (m === 0) return h + 'h';
+  return h + 'h ' + m + 'm';
+}
+
+/* Full-day schedule for an age + morning wake time.
+   ageMonths: decimal months. wakeTime: "HH:MM" (24h) or minutes.
+   Returns { bracket, events:[{type:'nap'|'bedtime', label, start, end, windowBefore}], wakeMin, bedtimeMin, summary }. */
+function scheduleForAge(ageMonths, wakeTime) {
+  var b = bracketForAge(ageMonths);
+  var wakeMin = (typeof wakeTime === 'number') ? wakeTime : parseTime(wakeTime);
+  if (wakeMin === null || wakeMin === undefined) wakeMin = 7 * 60; /* default 7:00 AM */
+  var naps = b.naps;
+  /* Wake windows grow through the day: interpolate from windowMin to windowMax. */
+  var gaps = naps + 1; /* gaps: wake->nap1 ... last nap->bedtime */
+  var events = [];
+  var cursor = wakeMin;
+  for (var i = 0; i < naps; i++) {
+    var frac = naps === 1 ? 0.5 : i / (naps - 1);
+    var win = Math.round(b.windowMin + (b.windowMax - b.windowMin) * frac * 0.75);
+    var napStart = cursor + win;
+    var napEnd = napStart + b.napLen;
+    events.push({
+      type: 'nap', index: i + 1,
+      label: 'Nap ' + (i + 1),
+      start: napStart, end: napEnd,
+      windowBefore: win, napLength: b.napLen
+    });
+    cursor = napEnd;
+  }
+  /* Bedtime gap is the longest: 90-100% of windowMax. */
+  var bedGap = Math.round(b.windowMax * 0.95);
+  var bedtime = cursor + bedGap;
+  events.push({ type: 'bedtime', index: 0, label: 'Bedtime', start: bedtime, end: bedtime + 12 * 60, windowBefore: bedGap });
+  return {
+    bracket: b, events: events, wakeMin: wakeMin, bedtimeMin: bedtime,
+    totalNapMin: naps * b.napLen,
+    summary: naps + ' naps of ~' + b.napLen + ' min, bedtime around ' + formatTime(bedtime)
+  };
+}
+
+/* Overtired rescue mode.
+   params: { ageMonths, lastWake ("HH:MM" or minutes), missedNapIndex (1-based nap skipped), wakeMin ("HH:MM" optional) }
+   Returns adjusted { events, bedtimeMin, earlierByMin, bridgeCatnap, tips[] }. */
+function rescueSchedule(params) {
+  var p = params || {};
+  var ageMonths = isFinite(p.ageMonths) ? p.ageMonths : 6;
+  var b = bracketForAge(ageMonths);
+  var wakeMin = (typeof p.wakeMin === 'number') ? p.wakeMin : parseTime(p.wakeMin);
+  if (wakeMin === null || wakeMin === undefined) wakeMin = 7 * 60;
+  var lastWake = (typeof p.lastWake === 'number') ? p.lastWake : parseTime(p.lastWake);
+  if (lastWake === null || lastWake === undefined) lastWake = wakeMin;
+  if (lastWake < wakeMin) lastWake += 1440; /* nap that rolled past midnight */
+  var missed = p.missedNapIndex || 1;
+  if (missed < 1) missed = 1;
+  if (missed > b.naps) missed = b.naps;
+
+  /* Normal plan, then rescue adjustments. */
+  var normal = scheduleForAge(ageMonths, wakeMin);
+  var earlierBy = 45 + (b.naps >= 3 ? 15 : 0); /* pull bedtime earlier ~45-60 min */
+  var bedtime = normal.bedtimeMin - earlierBy;
+
+  var events = [];
+  /* Bridge catnap: a short rescue nap so the baby isn't awake for a giant stretch.
+     Insert if the gap from lastWake to the adjusted bedtime exceeds the safe window. */
+  var safeWindow = Math.round(b.windowMin * 1.25);
+  var gapToBed = bedtime - lastWake;
+  var bridgeCatnap = null;
+  if (gapToBed > safeWindow + 30 && ageMonths < 10) {
+    var catStart = lastWake + Math.round(b.windowMin * 0.75);
+    var catEnd = catStart + 30; /* 30-minute emergency bridge nap */
+    bridgeCatnap = { type: 'catnap', index: 0, label: 'Bridge catnap', start: catStart, end: catEnd, windowBefore: catStart - lastWake };
+    events.push(bridgeCatnap);
+    /* Bedtime gets a slightly shorter final gap after the catnap. */
+    bedtime = Math.min(bedtime, catEnd + Math.round(b.windowMin * 1.5));
+  }
+  events.push({ type: 'bedtime', index: 0, label: 'Rescue bedtime', start: bedtime, end: bedtime + 12 * 60, windowBefore: bedtime - (bridgeCatnap ? bridgeCatnap.end : lastWake) });
+
+  var tips = [
+    'Move bedtime ' + earlierBy + ' min earlier than the normal ' + formatTime(normal.bedtimeMin) + ' — overtired babies sleep better with an early night, not a later one.',
+    'Keep the room dark and the routine short tonight; skip any skipped-nap "make-up" that pushes the day later.',
+    'Watch for early sleepy cues (eye rubbing, yawning) and start the routine 15 min before the rescue bedtime.',
+    'Tomorrow, restart the normal schedule — one early night usually resets the cycle.'
+  ];
+  if (bridgeCatnap) tips.unshift('A 30-minute bridge catnap at ' + formatTime(bridgeCatnap.start) + ' takes the edge off without wrecking bedtime.');
+
+  return {
+    bracket: b, events: events, bedtimeMin: bedtime,
+    normalBedtimeMin: normal.bedtimeMin, earlierByMin: earlierBy,
+    missedNapIndex: missed, bridgeCatnap: bridgeCatnap, tips: tips,
+    summary: 'Missed nap ' + missed + ' → rescue bedtime at ' + formatTime(bedtime) + ' (' + earlierBy + ' min early)'
+  };
+}
+
+/* Nap-transition predictor.
+   Returns { from, to, windowStart, windowEnd, ageNow, stage, signs[] }. */
+function napTransition(ageMonths) {
+  var transitions = [
+    { from: 4, to: 3, windowStart: 4.5, windowEnd: 6.5, ageNow: ageMonths,
+      signs: [
+        'The 4th (last) nap consistently takes 20+ minutes of rocking to start.',
+        'Bedtime keeps drifting later even with a full 4-nap day.',
+        'The last nap starts pushing into the evening and shortens night sleep.',
+        'Baby happily stays awake through an old wake window with no fuss.',
+        'Morning wake time creeps later, squeezing the whole schedule.'
+      ],
+      note: 'Most babies settle into 3 naps between 5 and 6 months.'
+    },
+    { from: 3, to: 2, windowStart: 6.5, windowEnd: 9, ageNow: ageMonths,
+      signs: [
+        'Consistently refusing the third nap, or it only happens in the stroller/car.',
+        'Bedtime becomes a battle when all three naps are taken.',
+        'Early-morning wakes appear (before 6 AM) for several days in a row.',
+        'Nap 1 and nap 2 naturally stretch longer while nap 3 shrinks to a catnap.',
+        'Baby is cheerful through a 3-hour wake window that used to end naps.'
+      ],
+      note: 'The 3→2 drop usually lands between 7 and 9 months.'
+    },
+    { from: 2, to: 1, windowStart: 13, windowEnd: 16, ageNow: ageMonths,
+      signs: [
+        'One of the two naps is refused or takes 30+ minutes to fall asleep for.',
+        'The morning nap keeps getting later and steals the afternoon nap.',
+        'Bedtime battles return on days both naps are taken.',
+        'A single long midday nap happens easily on daycare or outing days.',
+        'Baby stays happy through a 4–5 hour morning wake window.'
+      ],
+      note: 'The 2→1 drop typically happens between 14 and 15 months.'
+    }
+  ];
+  var idx = 0;
+  if (ageMonths >= 6.5 && ageMonths < 13) idx = 1;
+  else if (ageMonths >= 13) idx = 2;
+  var t = transitions[idx];
+  var stage = 'before';
+  if (ageMonths >= t.windowStart && ageMonths <= t.windowEnd) stage = 'in-window';
+  else if (ageMonths > t.windowEnd) stage = 'past-window';
+  return {
+    from: t.from, to: t.to,
+    windowStart: t.windowStart, windowEnd: t.windowEnd,
+    ageNow: ageMonths, stage: stage,
+    signs: t.signs, note: t.note
+  };
+}
+
+/* Growth-spurt / leap / teething flags by age in weeks (approximate).
+   Returns [{ type, week, title, detail, status:'now'|'soon' }].
+   "soon" = within 1 week of a known window. */
+function fussyPeriods(ageWeeks) {
+  var out = [];
+  if (!isFinite(ageWeeks) || ageWeeks < 0) return out;
+  var leaps = [
+    { week: 5,  title: 'Leap ~5 weeks',  detail: 'First big sensory shift; clinginess and shorter naps are common.' },
+    { week: 8,  title: 'Leap ~8 weeks',  detail: 'Patterns emerge — babies may be fussier while the brain reorganizes.' },
+    { week: 12, title: 'Leap ~12 weeks', detail: 'Smooth transitions arrive; sleep can wobble for a few days.' },
+    { week: 19, title: 'Leap ~19 weeks', detail: 'The well-known 4-month sleep regression zone; night wakes often spike.' },
+    { week: 26, title: 'Leap ~26 weeks', detail: 'Relationships click; separation anxiety can disrupt bedtime.' },
+    { week: 37, title: 'Leap ~37 weeks', detail: 'Categories and planning develop; naps may shorten temporarily.' },
+    { week: 46, title: 'Leap ~46 weeks', detail: 'Sequences and routines land; some babies fight the second nap.' }
+  ];
+  var spurts = [3, 6, 12, 16, 24];
+  var i, w, d;
+
+  for (i = 0; i < leaps.length; i++) {
+    d = Math.abs(ageWeeks - leaps[i].week);
+    if (d <= 1) {
+      out.push({ type: 'leap', week: leaps[i].week, title: leaps[i].title, detail: leaps[i].detail,
+                 status: d < 1 ? 'now' : 'soon' });
+    }
+  }
+  for (i = 0; i < spurts.length; i++) {
+    w = spurts[i];
+    d = Math.abs(ageWeeks - w);
+    if (d <= 1) {
+      out.push({ type: 'spurt', week: w, title: 'Growth spurt ~week ' + w, detail: 'Cluster feeding and extra sleep needs are typical; expect schedule wobbles.',
+                 status: d < 1 ? 'now' : 'soon' });
+    }
+  }
+  /* Teething zone: roughly months 4–8 (weeks 17–35), flag when inside. */
+  if (ageWeeks >= 17 && ageWeeks <= 35) {
+    out.push({ type: 'teething', week: Math.round(ageWeeks), title: 'Teething window (approx)',
+               detail: 'First teeth often arrive between 4 and 8 months; drooling and night fussiness may spike.',
+               status: 'now' });
+  }
+  out.push({ type: 'note', week: 0, title: 'Approximate, not exact',
+             detail: 'Every baby runs on their own clock — these week ranges are averages, not appointments.',
+             status: 'info' });
+  out.sort(function (a, b) { return a.week - b.week; });
+  return out;
+}
+
+/* Countdown between two "HH:MM" times (or minute numbers).
+   Returns { totalSeconds, hours, minutes, seconds, passed, label }. */
+function countdownTo(target, now) {
+  var t = (typeof target === 'number') ? target : parseTime(target);
+  var n = (typeof now === 'number') ? now : parseTime(now);
+  if (t === null || n === null) return { totalSeconds: 0, hours: 0, minutes: 0, seconds: 0, passed: true, label: '—' };
+  var diff = (t - n) * 60;
+  if (diff < 0) return { totalSeconds: 0, hours: 0, minutes: 0, seconds: 0, passed: true, label: 'passed' };
+  var h = Math.floor(diff / 3600), m = Math.floor((diff % 3600) / 60), s = diff % 60;
+  var parts = [];
+  if (h > 0) parts.push(h + 'h');
+  parts.push((m < 10 && h > 0 ? '0' : '') + m + 'm');
+  parts.push((s < 10 ? '0' : '') + s + 's');
+  return { totalSeconds: diff, hours: h, minutes: m, seconds: s, passed: false, label: parts.join(' ') };
+}
+
+/* Next upcoming event from a schedule given "now" minutes; wraps to tomorrow's wake. */
+function nextEvent(schedule, nowMin) {
+  var evs = schedule.events || [];
+  for (var i = 0; i < evs.length; i++) {
+    if (evs[i].start > nowMin) return evs[i];
+  }
+  return { type: 'wake', index: 0, label: "Tomorrow's wake-up", start: schedule.wakeMin + 1440, end: schedule.wakeMin + 1440 };
+}
+
+</script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var STORE = 'snoozely-v1';
+
+  /* ---------- starfield ---------- */
+  (function stars() {
+    var f = $('starfield'), n = 130, i, s;
+    for (i = 0; i < n; i++) {
+      s = document.createElement('div');
+      s.className = 'star';
+      var size = Math.random() * 2.4 + 1;
+      s.style.cssText = 'left:' + (Math.random() * 100) + '%;top:' + (Math.random() * 100) +
+        '%;width:' + size + 'px;height:' + size + 'px;animation-delay:' + (Math.random() * 3).toFixed(2) + 's;' +
+        (Math.random() < 0.18 ? 'background:#FFD66B;' : '');
+      f.appendChild(s);
+    }
+  })();
+
+  function save() {
+    try {
+      localStorage.setItem(STORE, JSON.stringify({
+        age: $('age').value, unit: $('ageUnit').value, wake: $('wakeTime').value,
+        lastWake: $('lastWake').value, missed: $('missedNap').value
+      }));
+    } catch (e) {}
+  }
+  function load() {
+    try {
+      var d = JSON.parse(localStorage.getItem(STORE) || '{}');
+      if (d.age) $('age').value = d.age;
+      if (d.unit) $('ageUnit').value = d.unit;
+      if (d.wake) $('wakeTime').value = d.wake;
+      if (d.lastWake) $('lastWake').value = d.lastWake;
+      if (d.missed) $('missedNap').value = d.missed;
+    } catch (e) {}
+  }
+
+  function ageMonths() {
+    var a = parseFloat($('age').value);
+    if (!isFinite(a) || a < 0) return null;
+    return $('ageUnit').value === 'weeks' ? a / 4.345 : a;
+  }
+  function ageWeeks() {
+    var a = parseFloat($('age').value);
+    if (!isFinite(a) || a < 0) return null;
+    return $('ageUnit').value === 'weeks' ? a : a * 4.345;
+  }
+  function msg(el, t) { $(el).textContent = t || ''; }
+  function iconFor(type) {
+    if (type === 'bedtime') return '🛏️';
+    if (type === 'catnap') return '😴';
+    if (type === 'wake') return '☀️';
+    return '💤';
+  }
+
+  var lastSchedule = null;
+
+  function timelineHTML(events) {
+    var h = '<div class="relative pl-1">';
+    events.forEach(function (e, i) {
+      h += '<div class="flex gap-3">' +
+        '<div class="flex flex-col items-center"><div class="timeline-dot"></div>' +
+        (i < events.length - 1 ? '<div class="timeline-line flex-1 min-h-[26px]"></div>' : '') + '</div>' +
+        '<div class="pb-5 -mt-1">' +
+          '<div class="font-bold">' + iconFor(e.type) + ' ' + e.label + '</div>' +
+          '<div class="text-[#FFD66B] font-display text-lg font-bold">' + formatTime(e.start) +
+          (e.end && e.type !== 'bedtime' ? ' – ' + formatTime(e.end) : '') + '</div>' +
+          (e.windowBefore ? '<div class="text-xs text-slate-400">after ' + formatDuration(e.windowBefore) + ' awake</div>' : '') +
+        '</div></div>';
+    });
+    return h + '</div>';
+  }
+
+  function refreshCountOptions() {
+    var sel = $('countTarget');
+    sel.innerHTML = '';
+    if (!lastSchedule) { sel.innerHTML = '<option value="">Generate a schedule first…</option>'; return; }
+    lastSchedule.events.forEach(function (e, i) {
+      var o = document.createElement('option');
+      o.value = String(e.start);
+      o.textContent = e.label + ' — ' + formatTime(e.start);
+      sel.appendChild(o);
+    });
+  }
+
+  /* ---------- schedule ---------- */
+  $('btnSchedule').addEventListener('click', function () {
+    save();
+    var am = ageMonths();
+    if (am === null) { msg('scheduleMsg', 'Please enter a valid age (0–24 months).'); return; }
+    if (am > 24) { msg('scheduleMsg', 'Snoozely covers 0–24 months — using the 24-month plan.'); am = 24; }
+    var wt = $('wakeTime').value;
+    if (!wt) { msg('scheduleMsg', 'Please pick a morning wake-up time.'); return; }
+    msg('scheduleMsg', '');
+    var s = scheduleForAge(am, wt);
+    lastSchedule = s;
+    var box = $('scheduleCards');
+    box.innerHTML =
+      '<div class="accent-chip rounded-xl px-4 py-2 text-sm font-bold mb-4 inline-block">🌟 ' + s.bracket.label +
+      ' · ' + s.summary + '</div>' + timelineHTML(s.events) +
+      '<p class="text-xs text-slate-400 mt-1">' + s.bracket.note + ' Total daytime naps ≈ ' + formatDuration(s.totalNapMin) + '.</p>';
+    refreshCountOptions();
+    renderFussy();
+  });
+
+  /* ---------- rescue ---------- */
+  $('btnRescue').addEventListener('click', function () {
+    save();
+    var am = ageMonths();
+    if (am === null) { msg('rescueMsg', 'Please enter a valid age in the schedule panel first.'); return; }
+    var wt = $('wakeTime').value || '07:00';
+    var lw = $('lastWake').value;
+    if (!lw) { msg('rescueMsg', 'Please enter the last wake-up time.'); return; }
+    msg('rescueMsg', '');
+    var r = rescueSchedule({ ageMonths: Math.min(am, 24), wakeMin: wt, lastWake: lw, missedNapIndex: parseInt($('missedNap').value, 10) });
+    var tips = r.tips.map(function (t) {
+      return '<li class="flex gap-2 text-sm text-slate-200"><span class="text-[#FFD66B]">✦</span><span>' + t + '</span></li>';
+    }).join('');
+    $('rescueCards').innerHTML =
+      '<div class="accent-chip rounded-xl px-4 py-2 text-sm font-bold mb-4 inline-block">🚨 ' + r.summary + '</div>' +
+      timelineHTML(r.events) +
+      '<ul class="space-y-2 mt-2">' + tips + '</ul>';
+  });
+
+  /* ---------- transition ---------- */
+  $('btnTransition').addEventListener('click', function () {
+    var am = ageMonths();
+    var box = $('transitionCards');
+    if (am === null) { box.innerHTML = '<p class="text-sm text-[#FFD66B]">Enter a valid age in the schedule panel first.</p>'; return; }
+    var t = napTransition(Math.min(am, 24));
+    var stageTxt = t.stage === 'in-window' ? 'You are right in the typical window — watch the signs below.'
+      : t.stage === 'past-window' ? 'Past the typical window — if naps still feel fine, your baby may just be on their own timeline.'
+      : 'A little early for this transition — bookmark these signs for later.';
+    var key = 'snoozely-check-' + t.from + '-' + t.to;
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) {}
+    var items = t.signs.map(function (s, i) {
+      var checked = saved[i] ? ' checked' : '';
+      return '<label class="flex gap-2.5 items-start text-sm text-slate-200 cursor-pointer py-1.5">' +
+        '<input type="checkbox" data-i="' + i + '"' + checked + ' class="mt-1 accent-[#FFD66B] w-4 h-4">' +
+        '<span>' + s + '</span></label>';
+    }).join('');
+    box.innerHTML =
+      '<div class="text-center mb-4"><div class="font-display text-4xl font-extrabold text-[#FFD66B]">' +
+      t.from + ' → ' + t.to + ' naps</div>' +
+      '<div class="text-sm text-slate-300 mt-1">typically around month ' + t.windowStart + '–' + t.windowEnd + '</div>' +
+      '<p class="text-sm mt-2 text-slate-200">' + stageTxt + '</p>' +
+      '<p class="text-xs text-slate-400 mt-1">' + t.note + '</p></div>' +
+      '<div class="font-bold text-sm mb-1 text-slate-100">Readiness signs checklist</div>' + items +
+      '<div id="checkScore" class="text-xs text-slate-300 mt-2"></div>';
+    function score() {
+      var cbs = box.querySelectorAll('input[type=checkbox]'), n = 0, st = {};
+      cbs.forEach(function (c) { if (c.checked) n++; st[c.getAttribute('data-i')] = c.checked; });
+      try { localStorage.setItem(key, JSON.stringify(st)); } catch (e) {}
+      $('checkScore').textContent = n + ' of ' + cbs.length + ' signs seen' +
+        (n >= 3 ? ' — the transition is likely underway!' : n >= 1 ? ' — keep watching for a week or two.' : ' — no rush yet.');
+    }
+    box.querySelectorAll('input[type=checkbox]').forEach(function (c) { c.addEventListener('change', score); });
+    score();
+  });
+
+  /* ---------- fussy ---------- */
+  function renderFussy() {
+    var aw = ageWeeks();
+    var box = $('fussyCards');
+    if (aw === null) { box.innerHTML = '<p class="text-sm text-[#FFD66B]">Enter a valid age first.</p>'; return; }
+    var flags = fussyPeriods(aw);
+    var h = '<div class="text-xs text-slate-400 mb-1">Baby is ~' + Math.round(aw) + ' weeks old</div>';
+    flags.forEach(function (f) {
+      if (f.type === 'note') {
+        h += '<div class="text-xs text-slate-400 italic border border-dashed border-[#8B9CF0]/40 rounded-xl p-3">' + f.detail + '</div>';
+        return;
+      }
+      var badge = f.status === 'now'
+        ? '<span class="accent-chip rounded-full px-2.5 py-0.5 text-xs font-bold">HAPPENING NOW</span>'
+        : '<span class="rounded-full px-2.5 py-0.5 text-xs font-bold" style="background:rgba(139,156,240,.15);border:1px solid rgba(139,156,240,.5);color:#8B9CF0;">WITHIN A WEEK</span>';
+      var emoji = f.type === 'leap' ? '🧠' : f.type === 'spurt' ? '📈' : '🦷';
+      h += '<div class="glow-card p-3.5 ' + (f.status === 'now' ? 'flag-now' : 'flag-soon') + '">' +
+        '<div class="flex items-center justify-between gap-2 flex-wrap"><span class="font-bold text-sm">' + emoji + ' ' + f.title + '</span>' + badge + '</div>' +
+        '<p class="text-xs text-slate-300 mt-1">' + f.detail + '</p></div>';
+    });
+    box.innerHTML = h;
+  }
+  $('btnFussy').addEventListener('click', renderFussy);
+
+  /* ---------- countdown ---------- */
+  function targetMinutes() {
+    var manual = $('manualTime').value;
+    if (manual) { var p = manual.split(':'); return parseInt(p[0], 10) * 60 + parseInt(p[1], 10); }
+    var v = $('countTarget').value;
+    return v === '' ? null : parseInt(v, 10);
+  }
+  function targetLabel() {
+    if ($('manualTime').value) return 'Custom time ' + $('manualTime').value;
+    var sel = $('countTarget');
+    return sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].textContent : '—';
+  }
+  function tick() {
+    var tm = targetMinutes();
+    var big = $('countdownBig'), lab = $('countdownLabel');
+    if (tm === null) { big.textContent = '--:--:--'; lab.textContent = 'Next up: —'; return; }
+    var now = new Date();
+    var nm = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+    var cd = countdownTo(tm, nm);
+    if (cd.passed) {
+      /* roll to same time tomorrow */
+      cd = countdownTo(tm + 1440, nm);
+      lab.textContent = 'Next up (tomorrow): ' + targetLabel();
+    } else {
+      lab.textContent = 'Next up: ' + targetLabel();
+    }
+    var hh = String(cd.hours).padStart(2, '0'), mm = String(cd.minutes).padStart(2, '0'), ss = String(cd.seconds).padStart(2, '0');
+    big.textContent = hh + ':' + mm + ':' + ss;
+  }
+  setInterval(tick, 1000);
+  $('countTarget').addEventListener('change', tick);
+  $('manualTime').addEventListener('change', tick);
+
+  /* ---------- print ---------- */
+  $('btnPrint').addEventListener('click', function () {
+    if (!lastSchedule) { alert('Generate a schedule first, then print it.'); return; }
+    var am = ageMonths() || 0;
+    $('printMeta').textContent = 'Age: ' + $('age').value + ' ' + $('ageUnit').value +
+      ' · Wake-up: ' + formatTime(lastSchedule.wakeMin) + ' · Generated ' + new Date().toLocaleDateString();
+    var rows = lastSchedule.events.map(function (e) {
+      var time = formatTime(e.start) + (e.end && e.type !== 'bedtime' ? ' – ' + formatTime(e.end) : '');
+      var note = e.type === 'bedtime' ? 'Dark room, routine, drowsy but awake' : (e.windowBefore ? 'Put down after ' + formatDuration(e.windowBefore) + ' awake' : '');
+      return '<tr><td>' + e.label + '</td><td>' + time + '</td><td>' + note + '</td></tr>';
+    }).join('');
+    $('printBody').innerHTML = rows;
+    window.print();
+  });
+
+  load();
+  tick();
+})();
+</script>
+</body>
+</html>
